@@ -1,12 +1,16 @@
 #include <stdlib.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <windows.h>
+#include <locale.h>
 
 typedef struct _node_{
     char *palavra;
     struct _node_ *next;
     struct _node_ *prev;
     struct _list_ *sin;
+    int rep;
 }node;
 
 typedef struct _list_{
@@ -33,6 +37,7 @@ node *createNode(){
         no->next=NULL;
         no->palavra=NULL;
         no->sin=createList();
+        no->rep=0;
         return no;
     }
     return NULL;
@@ -41,8 +46,8 @@ node *createNode(){
 void addPalavra(node *no,char *s){
     if(no!=NULL && s!=NULL){
         int tam;
-        tam=strlen(s);
-        no->palavra=(char*)malloc(tam * sizeof(char));
+        tam=strlen(s)+1;
+        no->palavra=(char*)malloc(tam  * sizeof(char));
         strcpy(no->palavra,s);
     }
 }
@@ -68,7 +73,6 @@ int addList(list *l, char *c){
 node *compareWords(list *l, char *c){
     if(l!=NULL && c!=NULL){
         node *aux;
-        int log;
         aux=l->head;
         while(aux!=NULL){
             if(strcmp(aux->palavra,c)==0){
@@ -100,7 +104,8 @@ int removeList(list *l, char *c){
     return 0;
 }
 
-int countLine(FILE *f, char *n_arq){
+int countLine( char *n_arq){
+    FILE *f;
     f=fopen(n_arq,"r");
     char c;
     int count=0;
@@ -113,64 +118,112 @@ int countLine(FILE *f, char *n_arq){
     return count;
 }
 
-list *addSin(FILE *f){
-    list *l;
+list *addSin(char *n_arq){
+    FILE *f;
+    f=fopen(n_arq,"r");
+
+    char *buffer;
+    //buffer=(char*)malloc(500*sizeof(char));
+    char *an;
+
     int lines,i;
-    char *nome_arq;
+
+    list *l;
 
     l=createList();
-    nome_arq=(char*)malloc(100*sizeof(char));
-    strcpy(nome_arq,"sinonimos.csv");
-    lines=countLine(f,nome_arq);
-
-    char *buffer,*end_bf,*an;
-    buffer=(char*)malloc(500*sizeof(char));
-    end_bf=buffer;
-    int log;
     an=NULL;
-    f=fopen(nome_arq,"r");
+    lines=countLine(n_arq);
 
     for(i=0;i<lines;i++){
+        buffer=(char*)malloc(500*sizeof(char));
         fgets(buffer,500,f);
 
         an=strstr(buffer,";");
-        *an=NULL;
-        log=addList(l,buffer);
+        *an='\0';
+        addList(l,buffer);
         buffer=an+1;
 
-        while(buffer!=NULL){
+        an=strstr(buffer,";");
+        while(an!=NULL){
+            *an='\0';
+            addList(l->last->sin,buffer);
+            buffer=an +1;
             an=strstr(buffer,";");
-            if(an!=NULL){
-
-                *an=NULL;
-                log=addList(l->last->sin,buffer);
-                buffer=an+1;
-            }else{
-                an=strstr(buffer,"\n");
-                *an=NULL;
-                log=addList(l->head->sin,buffer);
-                buffer=NULL;
-            }
         }
-        buffer=end_bf;
+
     }
-    printf("fechou");
     fclose(f);
     return l;
 }
 
-int main(){
-    FILE *sin;
+int countCarct( char *n_arq){
+    FILE *f;
+    f=fopen(n_arq,"r");
+    char c;
+    int count=0;
 
+    while((c=fgetc(f))!=EOF){
+
+            count++;
+    }
+    fclose(f);
+    return count;
+}
+
+list *storeText(char *text){
+    FILE * f;
+    f=fopen(text,"r");
+    int tam;
+    char *buffer,*an;
     list *l;
+    l=createList();
+    tam=countCarct(text)+100;
+    buffer=(char*)malloc(tam *sizeof(char));
+
+    fgets(buffer,tam,f);
+    an=strtok(buffer," ,.-;!?");
+
+    while(an!=NULL){
+        addList(l,an);
+        an=strtok(NULL," ,.-;!?");
+    }
+    return l;
+}
+
+int main(){
+    setlocale(LC_ALL,"");
+    FILE *sin;
+    char *nome_arq;
+    list *l,*t_l;
     int log;
-    l=addSin(l);
+
+    nome_arq=(char*)malloc(100*sizeof(char));
+    strcpy(nome_arq,"sinonimos.csv");
+    l=addSin(nome_arq);
+    log=countCarct(nome_arq);
     printf("%i\n",log);
+    strcpy(nome_arq,"text.txt");
+    t_l=storeText(nome_arq);
+
     char *a;
     a=(char*)malloc(100*sizeof(char));
     while(l->head!=NULL){
         strcpy(a,l->head->palavra);
         printf("%s\n",a);
+        while(l->head->sin->head!=NULL){
+            strcpy(a,l->head->sin->head->palavra);
+            printf("%s, ",a);
+            l->head->sin->head=l->head->sin->head->next;
+
+        }
+        printf("\n");
         l->head=l->head->next;
     }
+    printf("\n\n");
+    while(t_l->head!=NULL){
+        strcpy(a,t_l->head->palavra);
+        printf("%s ",a);
+        t_l->head=t_l->head->next;
+    }
+
 }
